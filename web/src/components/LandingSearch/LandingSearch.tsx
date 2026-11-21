@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router';
 
 export const LandingSearch = () => {
   const [query, setQuery] = useState('');
   const [image, setImage] = useState(null);
   const [dragging, setDragging] = useState(false);
+  const navigate = useNavigate();
 
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
@@ -70,11 +72,19 @@ export const LandingSearch = () => {
   const handleSearch = () => {
     if (!query.trim() && !image) return;
 
-    // Tutaj podłączysz swoje API
-    console.log('Wyszukiwanie:', {
-      text: query,
-      image: image?.file || null,
-    });
+    // // Tutaj podłączysz swoje API
+    // console.log('Wyszukiwanie:', {
+    //   text: query,
+    //   image: image?.file || null,
+    // });
+
+    // navigate(
+    //   `/results?q=${encodeURIComponent(query)}${image ? '&image=true' : ''}`,
+    // );
+
+    navigate(
+      `/result?q=${query ? encodeURIComponent(query) : ''}${image ? '&image=true' : ''}`,
+    );
   };
 
   // Enter uruchamia wyszukiwanie
