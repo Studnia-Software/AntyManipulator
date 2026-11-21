@@ -1,9 +1,9 @@
-import LandingSearch from './components/LandingSearch/LandingSearch';
+import { LandingPage } from './pages/LandingPage';
 
 function App() {
   return (
     <>
-      <LandingSearch />
+      <LandingPage />
     </>
   );
 }
