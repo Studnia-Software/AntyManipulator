@@ -1,9 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net11.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>b65b1a3d-1354-41a6-ba42-8f3a79d6723f</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,6 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\AntyManipulator.Core\AntyManipulator.Core.csproj" />
     <ProjectReference Include="..\AntyManipulator.Integrations\AntyManipulator.Integrations.csproj" />
   </ItemGroup>
 

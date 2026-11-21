@@ -6,8 +6,9 @@ public static class EndpointRouteBuilderExtensions
 {
     public static IEndpointRouteBuilder MapEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapDetector();
-        
+        endpoints.MapChecks();
+        endpoints.MapAdmin();
+
         return endpoints;
     }
 }
