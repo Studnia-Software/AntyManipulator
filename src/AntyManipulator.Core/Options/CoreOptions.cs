@@ -30,6 +30,18 @@ public sealed class PipelineOptions
 
     [Range(10, 600)]
     public int CheckTimeoutSeconds { get; set; } = 120;
+
+    public List<string> SearchLanguages { get; set; } = ["pl", "en", "de", "fr", "es", "it", "uk", "ru", "cs", "sk", "hu", "lt", "be"];
+
+    [Range(0, 5)]
+    public int MaxExtraLanguages { get; set; } = 2;
+
+    public IReadOnlyList<string> AllowedLanguages() =>
+        new[] { "pl", "en" }
+            .Concat(SearchLanguages.Select(l => l.Trim().ToLowerInvariant()))
+            .Where(l => l.Length is >= 2 and <= 3 && l.All(char.IsAsciiLetterLower))
+            .Distinct()
+            .ToList();
 }
 
 public sealed class AlertOptions

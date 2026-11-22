@@ -22,20 +22,21 @@ public sealed class OpenAiCompatibleLlmClient(
 {
     private static readonly JsonSerializerOptions ReadOptions = new() { PropertyNameCaseInsensitive = true };
 
-    public string ModelName => options.Value.Model;
+    public string ModelFor(string purpose) => options.Value.Resolve(purpose).Model;
 
     public async Task<T> CompleteJsonAsync<T>(LlmJsonRequest request, CancellationToken cancellationToken)
     {
         var opts = options.Value;
-        var body = BuildBody(request, opts);
+        var profile = opts.Resolve(request.Purpose);
+        var body = BuildBody(request, profile);
 
         for (var attempt = 0; ; attempt++)
         {
-            using var message = new HttpRequestMessage(HttpMethod.Post, opts.Uri)
+            using var message = new HttpRequestMessage(HttpMethod.Post, profile.Uri)
             {
                 Content = new StringContent(body, Encoding.UTF8, "application/json"),
             };
-            message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", opts.ApiKey);
+            message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", profile.ApiKey);
 
             HttpResponseMessage response;
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -81,7 +82,7 @@ public sealed class OpenAiCompatibleLlmClient(
         }
     }
 
-    private static string BuildBody(LlmJsonRequest request, LlmOptions opts)
+    private static string BuildBody(LlmJsonRequest request, ResolvedLlmProfile opts)
     {
         var system = request.SystemPrompt;
         JsonObject responseFormat;

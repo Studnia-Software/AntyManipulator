@@ -1,6 +1,5 @@
-using System.Security.Cryptography;
-using System.Text;
 using AntyManipulator.Api.Requests;
+using AntyManipulator.Core.Channels;
 using AntyManipulator.Core.Abstractions;
 using AntyManipulator.Core.Domain;
 using AntyManipulator.Core.Pipeline;
@@ -35,7 +34,7 @@ public static class ChecksController
         CreateCheckRequest request,
         HttpContext http,
         [FromServices] IFactCheckPipeline pipeline,
-        [FromServices] IConfiguration configuration,
+        [FromServices] IUserPseudonymizer pseudonymizer,
         CancellationToken cancellationToken)
     {
         var errors = Validate(request);
@@ -47,7 +46,8 @@ public static class ChecksController
         var result = await pipeline.RunAsync(new CheckRequest
         {
             Channel = "web",
-            UserHash = UserHash(http, configuration),
+            // Pseudonim z adresu IP; surowe IP nie trafia do zapisu.
+            UserHash = pseudonymizer.Pseudonymize("web", http.Connection.RemoteIpAddress?.ToString() ?? "unknown"),
             Text = request.Text,
             Url = request.Url,
         }, cancellationToken);
@@ -101,20 +101,4 @@ public static class ChecksController
         return errors;
     }
 
-    /// <summary>Pseudonim użytkownika: HMAC z adresu IP. Surowe IP nie trafia do zapisu.</summary>
-    private static string UserHash(HttpContext http, IConfiguration configuration)
-    {
-        var salt = configuration["Privacy:UserHashSalt"];
-        if (string.IsNullOrEmpty(salt))
-        {
-            salt = FallbackSalt;
-        }
-
-        var ip = http.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        var hash = HMACSHA256.HashData(Encoding.UTF8.GetBytes(salt), Encoding.UTF8.GetBytes("web:" + ip));
-        return Convert.ToHexString(hash)[..16].ToLowerInvariant();
-    }
-
-    // Bez skonfigurowanej soli używamy losowej na czas życia procesu.
-    private static readonly string FallbackSalt = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 }

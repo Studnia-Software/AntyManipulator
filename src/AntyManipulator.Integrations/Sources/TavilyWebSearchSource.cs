@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
+using AntyManipulator.Core.Abstractions;
 using AntyManipulator.Core.Domain;
 using AntyManipulator.Core.Options;
 using AntyManipulator.Core.Text;
@@ -28,6 +29,13 @@ public sealed class TavilyWebSearchSource(
     private readonly IHttpClientFactory _httpFactory = httpFactory;
     private readonly IMemoryCache _cache = cache;
     private readonly SourcesOptions _options = options;
+
+    /// <summary>
+    /// Jedno wyszukiwanie na język (pl, en i języki dodatkowe dobrane do twierdzenia, łącznie najwyżej
+    /// MaxLanguages z definicji źródła). Każde wyszukiwanie to 1 kredyt Tavily.
+    /// </summary>
+    public override Task<SourceSearchResult> SearchAsync(EvidenceQuery query, CancellationToken cancellationToken) =>
+        SearchPerLanguageAsync(query, (q, _, ct) => SearchOneAsync(q, query, ct), web.MaxResults, cancellationToken);
 
     protected override async Task<IReadOnlyList<SourceDocument>> SearchOneAsync(string q, EvidenceQuery query, CancellationToken ct)
     {
@@ -108,7 +116,7 @@ public sealed class TavilyWebSearchSource(
 
     private SourceDescriptor DescribeDomain(string host)
     {
-        var known = registered.FirstOrDefault(d => d.Adapter is not (SourceAdapter.TavilyWebSearch or SourceAdapter.GoogleFactCheck)
+        var known = registered.FirstOrDefault(d => !SourceAdapters.IsAggregator(d.Adapter)
                                                     && Domains.HostOf(d.BaseUrl) is { } h && Domains.Matches(host, h));
         if (known is not null)
         {

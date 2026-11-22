@@ -34,15 +34,15 @@ public sealed class EvidenceRetriever(
         var query = new EvidenceQuery
         {
             ClaimText = claim.Text,
-            QueriesPl = claim.QueriesPl,
-            QueriesEn = claim.QueriesEn,
+            Queries = claim.Queries,
             ExcludedDomains = excludedDomains,
         };
 
         var tasks = registry.Active.Select(source => QuerySourceAsync(source, query, opts, cancellationToken)).ToList();
         var results = await Task.WhenAll(tasks);
 
-        var claimTokens = TextTools.Tokens(string.Join(' ', new[] { claim.Text }.Concat(claim.QueriesPl).Concat(claim.QueriesEn)));
+        // Tokeny ze wszystkich języków zapytań, żeby nie odrzucać wyników np. po węgiersku.
+        var claimTokens = TextTools.Tokens(query.AllText);
         var candidates = results
             .SelectMany(r => r.Documents)
             .DistinctBy(d => d.Url.TrimEnd('/'), StringComparer.OrdinalIgnoreCase)

@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="AntyManipulator.Api/AntyManipulator.Api.csproj" />
+  <Project Path="AntyManipulator.Channels.Discord/AntyManipulator.Channels.Discord.csproj" />
   <Project Path="AntyManipulator.Core/AntyManipulator.Core.csproj" />
   <Project Path="AntyManipulator.Integrations/AntyManipulator.Integrations.csproj" />
 </Solution>

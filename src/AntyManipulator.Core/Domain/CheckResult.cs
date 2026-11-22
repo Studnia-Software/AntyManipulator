@@ -92,6 +92,13 @@ public sealed record EvidenceItem
     public DateTimeOffset? Date { get; init; }
     public required string DateKind { get; init; }
     public string? Quote { get; init; }
+
+    /// <summary>Język materiału (ISO 639-1).</summary>
+    public string? Language { get; init; }
+
+    /// <summary>Polskie tłumaczenie cytatu przygotowane przez model. Pokazywać z oznaczeniem, że to tłumaczenie.</summary>
+    public string? QuoteTranslationPl { get; init; }
+
     public required Stance Stance { get; init; }
     public required string StanceLabel { get; init; }
     public required Relevance Relevance { get; init; }
@@ -123,6 +130,90 @@ public sealed record ClaimResult
 
     public IReadOnlyList<string> Unknowns { get; init; } = [];
     public required RiskLevel Risk { get; init; }
+
+    /// <summary>Łańcuch dowodowy: od twierdzenia przez wyszukiwanie i ocenę fragmentów do reguły i wyniku.</summary>
+    public EvidenceChain? Chain { get; init; }
+}
+
+public enum ChainRole
+{
+    Supports,
+    Refutes,
+    Misleading,
+    Context,
+    Rejected,
+}
+
+public enum Agreement
+{
+    /// <summary>Wszystkie uwzględnione źródła wskazują w tę samą stronę.</summary>
+    Consistent,
+
+    /// <summary>Część źródeł potwierdza, część przeczy lub wskazuje na manipulację.</summary>
+    Conflicting,
+
+    /// <summary>Brak uwzględnionych materiałów.</summary>
+    NoEvidence,
+}
+
+public sealed record EvidenceChain
+{
+    public required string Narrative { get; init; }
+
+    public IReadOnlyList<ChainStep> Steps { get; init; } = [];
+
+    /// <summary>Wszystkie ocenione fragmenty, także odrzucone, z powodem odrzucenia.</summary>
+    public IReadOnlyList<ChainLink> Links { get; init; } = [];
+
+    public SourceComparison? Comparison { get; init; }
+}
+
+public sealed record ChainStep
+{
+    public required int Order { get; init; }
+
+    public required string Stage { get; init; }
+
+    public required string Title { get; init; }
+    public IReadOnlyList<string> Details { get; init; } = [];
+}
+
+public sealed record ChainLink
+{
+    public required string PassageId { get; init; }
+    public required ChainRole Role { get; init; }
+    public required string RoleLabel { get; init; }
+    public required string SourceName { get; init; }
+    public required string Publisher { get; init; }
+    public required string SourceTypeLabel { get; init; }
+    public required string OwnershipGroup { get; init; }
+    public required string Title { get; init; }
+    public required string Url { get; init; }
+    public DateTimeOffset? Date { get; init; }
+    public string? Language { get; init; }
+    public string? Quote { get; init; }
+    public string? QuoteTranslationPl { get; init; }
+    public double Weight { get; init; }
+
+    public string? WeightFormula { get; init; }
+
+    public bool CountedInVerdict { get; init; }
+
+    public string? Note { get; init; }
+}
+
+public sealed record SourceComparison
+{
+    public required Agreement Agreement { get; init; }
+    public required string AgreementLabel { get; init; }
+    public required string Summary { get; init; }
+    public IReadOnlyList<string> Supporting { get; init; } = [];
+    public IReadOnlyList<string> Refuting { get; init; } = [];
+    public IReadOnlyList<string> Misleading { get; init; } = [];
+    public IReadOnlyList<string> ContextOnly { get; init; } = [];
+
+    /// <summary>Opisy sprzeczności, np. "CBOS potwierdza, a Interia przeczy".</summary>
+    public IReadOnlyList<string> Conflicts { get; init; } = [];
 }
 
 public sealed record InputSummary

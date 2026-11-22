@@ -9,8 +9,12 @@ public sealed record Claim
     public string? RiskReason { get; init; }
     public bool NeedsClarification { get; init; }
     public string? ClarificationQuestion { get; init; }
-    public IReadOnlyList<string> QueriesPl { get; init; } = [];
-    public IReadOnlyList<string> QueriesEn { get; init; } = [];
+    /// <summary>Zapytania wyszukiwania w różnych językach (zawsze pl, zwykle en, czasem język kraju, którego sprawa dotyczy).</summary>
+    public IReadOnlyList<SearchQuery> Queries { get; init; } = [];
+
+    public IReadOnlyList<string> QueriesPl => SearchQuery.For(Queries, "pl");
+
+    public IReadOnlyList<string> QueriesEn => SearchQuery.For(Queries, "en");
 
     public bool IsCheckable => Kind == ClaimKind.Factual;
 }
@@ -36,6 +40,9 @@ public sealed record AssessedEvidence
 
     /// <summary>Fragment nie dotyczy twierdzenia, ale opisuje tło (to samo wydarzenie, osoby). Nie wpływa na werdykt.</summary>
     public bool IsContext { get; init; }
+
+    /// <summary>Polskie tłumaczenie cytatu wykonane przez model (tylko dla cytatów w innym języku). Nie jest weryfikowane.</summary>
+    public string? QuoteTranslationPl { get; init; }
 }
 
 public sealed record EvidenceAssessment

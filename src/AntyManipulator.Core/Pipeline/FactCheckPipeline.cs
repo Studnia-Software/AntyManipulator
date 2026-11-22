@@ -203,7 +203,8 @@ public sealed class FactCheckPipeline(
         {
             ctx.Traces.Add(new ClaimTrace { ClaimIndex = claim.Index, SourceQueries = retrieval.Logs });
             return VerdictEngine.Status(claim, ServiceStatus.CannotCheck,
-                "Nie udało się połączyć z żadnym ze źródeł. To nie jest ocena twierdzenia. Spróbuj ponownie później.");
+                "Nie udało się połączyć z żadnym ze źródeł. To nie jest ocena twierdzenia. Spróbuj ponownie później.",
+                sourceLogs: retrieval.Logs);
         }
 
         EvidenceAssessment assessment;
@@ -228,7 +229,7 @@ public sealed class FactCheckPipeline(
                     SourceQueries = retrieval.Logs,
                     CandidateCount = retrieval.CandidateCount,
                 });
-                return VerdictEngine.Status(claim, ServiceStatus.TechnicalFailure, LlmFailureMessage(ex));
+                return VerdictEngine.Status(claim, ServiceStatus.TechnicalFailure, LlmFailureMessage(ex), sourceLogs: retrieval.Logs);
             }
 
             if (assessment.InjectionSuspected)
@@ -339,7 +340,12 @@ public sealed class FactCheckPipeline(
 
         if (ctx.Claims.Count > 0)
         {
-            list.Add($"Werdykt wyznaczają jawne reguły na podstawie wagi źródeł. Model językowy ({llm.ModelName}) wyodrębnia twierdzenia, ocenia fragmenty źródeł i pisze opis. Może się pomylić, dlatego pokazujemy cytaty i linki.");
+            list.Add($"Werdykt wyznaczają jawne reguły na podstawie wagi źródeł. Model językowy ({ModelsDescription()}) wyodrębnia twierdzenia, ocenia fragmenty źródeł i pisze opis. Może się pomylić, dlatego pokazujemy cytaty i linki.");
+
+            if (ctx.Claims.Any(c => c.Evidence.Any(e => e.QuoteTranslationPl is not null)))
+            {
+                list.Add("Część materiałów jest w innym języku. Cytaty pokazujemy w oryginale (to one są sprawdzane), a polskie tłumaczenie przygotował model i może być niedokładne.");
+            }
         }
 
         if (ctx.InjectionSignals.Count > 0)
@@ -370,7 +376,7 @@ public sealed class FactCheckPipeline(
                 InputText = string.IsNullOrEmpty(text) ? null : text,
                 InputUrl = url,
                 FetchedTextExcerpt = ctx.Page is null ? null : ctx.MaterialExcerpt,
-                Model = llm.ModelName,
+                Model = ModelsDescription(),
                 PromptVersion = Prompts.Version,
                 RulesVersion = VerdictEngine.RulesVersion,
                 InjectionSignals = ctx.InjectionSignals.Distinct().ToList(),
@@ -391,6 +397,13 @@ public sealed class FactCheckPipeline(
         LlmFailureKind.InvalidOutput => "Model analizy zwrócił niepoprawną odpowiedź, więc nie pokazujemy wyniku. Spróbuj ponownie.",
         _ => "Usługa analizy jest chwilowo niedostępna. To nie jest ocena treści. Spróbuj ponownie później.",
     };
+
+    private string ModelsDescription()
+    {
+        var extraction = llm.ModelFor(LlmPurposes.Extraction);
+        var assessment = llm.ModelFor(LlmPurposes.Assessment);
+        return extraction == assessment ? extraction : $"ekstrakcja: {extraction}, ocena: {assessment}";
+    }
 
     /// <summary>Wyklucza domenę sprawdzanej strony i wszystkie domeny tego samego wydawcy.</summary>
     private void AddExcludedDomain(RunContext ctx, string url)

@@ -29,7 +29,7 @@ public abstract class EvidenceSourceBase(
     /// </summary>
     public virtual async Task<SourceSearchResult> SearchAsync(EvidenceQuery query, CancellationToken cancellationToken)
     {
-        var claimTokens = TextTools.Tokens(string.Join(' ', new[] { query.ClaimText }.Concat(QueriesFor(query))));
+        var claimTokens = TextTools.Tokens(query.AllText);
         var used = new List<string>();
         List<(SourceDocument Doc, int Overlap)> best = [];
 
@@ -90,10 +90,64 @@ public abstract class EvidenceSourceBase(
         return list.Distinct(StringComparer.OrdinalIgnoreCase).Take(max);
     }
 
+    /// <summary>Zapytania w języku źródła; gdy model nie dał zapytań w tym języku, treść twierdzenia.</summary>
     protected IReadOnlyList<string> QueriesFor(EvidenceQuery query)
     {
-        var list = Descriptor.Language.StartsWith("en", StringComparison.OrdinalIgnoreCase) ? query.QueriesEn : query.QueriesPl;
+        var list = query.For(Descriptor.Language.ToLowerInvariant());
         return list.Count > 0 ? list : [TextTools.Truncate(query.ClaimText, 80)];
+    }
+
+    /// <summary>
+    /// Języki odpytywane przez źródło wielojęzyczne: stałe z konfiguracji ("Languages") plus,
+    /// jeśli włączone, języki dodatkowe dobrane przez model do twierdzenia. Tylko te, dla których są zapytania.
+    /// </summary>
+    protected IReadOnlyList<string> SearchLanguages(EvidenceQuery query)
+    {
+        IEnumerable<string> configured = Definition.Languages.Count > 0 ? Definition.Languages : new List<string> { Definition.Language };
+        var languages = configured.Select(l => l.Trim().ToLowerInvariant()).ToList();
+        if (Definition.UseClaimLanguages)
+        {
+            languages.AddRange(query.Languages);
+        }
+
+        return languages
+            .Distinct()
+            .Where(l => query.For(l).Count > 0)
+            .Take(Definition.MaxLanguages)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Jedno zapytanie na każdy język, wyniki scalone i uszeregowane według zgodności
+    /// z twierdzeniem i zapytaniami we wszystkich językach.
+    /// </summary>
+    protected async Task<SourceSearchResult> SearchPerLanguageAsync(
+        EvidenceQuery query,
+        Func<string, string, CancellationToken, Task<IReadOnlyList<SourceDocument>>> searchInLanguage,
+        int take,
+        CancellationToken ct)
+    {
+        var tokens = TextTools.Tokens(query.AllText);
+        var used = new List<string>();
+        var docs = new List<SourceDocument>();
+
+        foreach (var language in SearchLanguages(query))
+        {
+            var q = query.For(language)[0];
+            used.Add($"{q} [{language}]");
+            var found = await searchInLanguage(q, language, ct);
+            docs.AddRange(found.Select(d => d.Language is null ? d with { Language = language } : d));
+        }
+
+        var ranked = docs
+            .DistinctBy(d => d.Url.TrimEnd('/'), StringComparer.OrdinalIgnoreCase)
+            .Select(d => (Doc: d, Overlap: TextTools.Overlap(tokens, TextTools.Tokens(d.Title + " " + d.Snippet))))
+            .OrderByDescending(x => x.Overlap)
+            .Take(take)
+            .Select(x => x.Doc)
+            .ToList();
+
+        return new SourceSearchResult { Documents = ranked, QueriesUsed = used };
     }
 
     /// <param name="isValid">
@@ -209,7 +263,7 @@ public sealed class RssLatestSource(SourceDefinition d, IHttpClientFactory f, IM
     protected override async Task<IReadOnlyList<SourceDocument>> SearchOneAsync(string q, EvidenceQuery query, CancellationToken ct)
     {
         var xml = await GetStringCachedAsync(Definition.FeedUrl ?? Definition.BaseUrl, ct, LooksLikeFeed);
-        var claimTokens = TextTools.Tokens(string.Join(' ', new[] { query.ClaimText }.Concat(QueriesFor(query))));
+        var claimTokens = TextTools.Tokens(query.AllText);
 
         return FeedParser.Parse(xml)
             .Select(i => (Item: i, Overlap: TextTools.Overlap(claimTokens, TextTools.Tokens(i.Title + " " + i.Description))))

@@ -5,13 +5,25 @@ namespace AntyManipulator.Core.Abstractions;
 /// <summary>Model językowy zwracający wyłącznie JSON zgodny ze schematem. Nie ma narzędzi ani uprawnień.</summary>
 public interface ILlmClient
 {
-    string ModelName { get; }
+    /// <summary>Nazwa modelu używanego dla danego kroku (do audytu i opisu ograniczeń).</summary>
+    string ModelFor(string purpose);
 
     Task<T> CompleteJsonAsync<T>(LlmJsonRequest request, CancellationToken cancellationToken);
 }
 
+public static class LlmPurposes
+{
+    public const string Default = "default";
+    public const string Extraction = "extraction";
+    public const string Assessment = "assessment";
+
+    public static readonly IReadOnlyList<string> All = [Extraction, Assessment];
+}
+
 public sealed record LlmJsonRequest
 {
+    public string Purpose { get; init; } = LlmPurposes.Default;
+
     public required string SchemaName { get; init; }
     public required string SchemaJson { get; init; }
     public required string SystemPrompt { get; init; }
@@ -95,6 +107,18 @@ public interface IAuditLog
     Task WriteCheckAsync(AuditRecord record, CancellationToken cancellationToken);
 
     Task WriteAlertAsync(Alert alert, CancellationToken cancellationToken);
+}
+
+public enum AuditKind
+{
+    Checks,
+    Alerts,
+}
+
+/// <summary>Odczyt zapisanych przebiegów (do eksportu). Każda linia to jeden rekord JSON.</summary>
+public interface IAuditReader
+{
+    IAsyncEnumerable<string> ReadLinesAsync(AuditKind kind, DateOnly from, DateOnly to, CancellationToken cancellationToken);
 }
 
 public interface IAlertNotifier

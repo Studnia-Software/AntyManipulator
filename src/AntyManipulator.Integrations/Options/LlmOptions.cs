@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace AntyManipulator.Integrations.Options;
 
-/// <summary>Dowolny dostawca zgodny z OpenAI Chat Completions (Groq, Scaleway, ...).</summary>
 public sealed class LlmOptions
 {
     public const string Section = "Llm";
@@ -32,4 +31,32 @@ public sealed class LlmOptions
 
     [Range(1, 120)]
     public int MaxRetryDelaySeconds { get; set; } = 20;
+
+    public Dictionary<string, LlmProfile> Profiles { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public ResolvedLlmProfile Resolve(string purpose)
+    {
+        Profiles.TryGetValue(purpose, out var p);
+        return new ResolvedLlmProfile(
+            Uri: Pick(p?.Uri, Uri),
+            ApiKey: Pick(p?.ApiKey, ApiKey),
+            Model: Pick(p?.Model, Model),
+            ReasoningEffort: p?.ReasoningEffort ?? ReasoningEffort,
+            ResponseFormat: Pick(p?.ResponseFormat, ResponseFormat));
+    }
+
+    private static string Pick(string? value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback : value;
 }
+
+public sealed class LlmProfile
+{
+    public string? Uri { get; set; }
+    public string? ApiKey { get; set; }
+    public string? Model { get; set; }
+
+    public string? ReasoningEffort { get; set; }
+
+    public string? ResponseFormat { get; set; }
+}
+
+public sealed record ResolvedLlmProfile(string Uri, string ApiKey, string Model, string? ReasoningEffort, string ResponseFormat);

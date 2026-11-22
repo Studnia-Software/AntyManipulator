@@ -19,6 +19,12 @@ public static class AdminController
         group.MapGet("/unanswered", ([FromServices] IAlertService alerts) => Results.Ok(alerts.UnansweredClusters()))
             .WithSummary("Grupy podobnych pytań, na które zabrakło źródeł");
 
+        group.MapGet("/queue", ([FromServices] IServiceProvider sp) =>
+                Results.Ok(new { pending = sp.GetService<AntyManipulator.Core.Queue.ICheckQueue>()?.Pending ?? 0 }))
+            .WithSummary("Liczba zadań czekających w kolejce kanałów asynchronicznych");
+
+        group.MapExport();
+
         return endpoints;
     }
 

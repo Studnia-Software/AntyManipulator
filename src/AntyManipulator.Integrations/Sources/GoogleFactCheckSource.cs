@@ -25,21 +25,15 @@ public sealed class GoogleFactCheckSource(
 
     private static readonly CultureInfo Pl = CultureInfo.GetCultureInfo("pl-PL");
 
+    /// <summary>
+    /// Jedno zapytanie na język (pl, en i języki dodatkowe dobrane do twierdzenia), bo API filtruje
+    /// wyniki po języku weryfikacji. Gdy nic nie znaleziono, pytamy jeszcze o pełną treść twierdzenia.
+    /// </summary>
     public override async Task<SourceSearchResult> SearchAsync(EvidenceQuery query, CancellationToken cancellationToken)
     {
-        var used = new List<string>();
-        var docs = new List<SourceDocument>();
-
-        foreach (var (q, lang) in new[] { (query.QueriesPl.FirstOrDefault(), "pl"), (query.QueriesEn.FirstOrDefault(), "en") })
-        {
-            if (string.IsNullOrWhiteSpace(q))
-            {
-                continue;
-            }
-
-            used.Add($"{q} [{lang}]");
-            docs.AddRange(await SearchLanguageAsync(q, lang, cancellationToken));
-        }
+        var perLanguage = await SearchPerLanguageAsync(query, SearchLanguageAsync, MaxResults * 2, cancellationToken);
+        var used = perLanguage.QueriesUsed.ToList();
+        var docs = perLanguage.Documents.ToList();
 
         if (docs.Count == 0)
         {
@@ -124,6 +118,7 @@ public sealed class GoogleFactCheckSource(
                     DateKind = reviewDate is not null ? "data weryfikacji" : "data twierdzenia",
                     Snippet = BuildSnippet(claimText, claimant, claimDate, publisherName ?? host, rating),
                     Categories = rating.Length > 0 ? [rating] : [],
+                    Language = languageCode,
                 });
             }
         }
@@ -157,7 +152,7 @@ public sealed class GoogleFactCheckSource(
         var siteHost = Domains.HostOf("https://" + (publisherSite ?? host).Trim().TrimStart('/')) ?? host;
 
         var known = registered.FirstOrDefault(d =>
-            d.Adapter is not (SourceAdapter.GoogleFactCheck or SourceAdapter.TavilyWebSearch)
+            !SourceAdapters.IsAggregator(d.Adapter)
             && Domains.HostOf(d.BaseUrl) is { } h
             && (Domains.Matches(host, h) || Domains.Matches(siteHost, h)));
         if (known is not null)

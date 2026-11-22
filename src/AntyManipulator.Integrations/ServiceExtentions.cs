@@ -50,9 +50,21 @@ public static class ServiceExtentions
         services.AddHttpClient(WebhookAlertNotifier.ClientName, c => c.Timeout = TimeSpan.FromSeconds(10));
 
         services.AddSingleton<IContentFetcher, SafeContentFetcher>();
-        services.AddSingleton<ISourceRegistry, SourceRegistry>();
-        services.AddSingleton<IAuditLog, JsonlAuditLog>();
         services.AddSingleton<IAlertNotifier, WebhookAlertNotifier>();
+
+        // Zapis i odczyt przebiegu (eksport) z tych samych plików JSONL.
+        services.AddSingleton<JsonlAuditLog>();
+        services.AddSingleton<IAuditLog>(sp => sp.GetRequiredService<JsonlAuditLog>());
+        services.AddSingleton<IAuditReader>(sp => sp.GetRequiredService<JsonlAuditLog>());
+
+        // Źródła: rejestr korzysta z fabryk. Własny adapter = services.AddEvidenceSourceAdapter<MojaFabryka>().
+        services.AddEvidenceSourceAdapter<WordPressSearchFeedFactory>();
+        services.AddEvidenceSourceAdapter<WordPressRestFactory>();
+        services.AddEvidenceSourceAdapter<RssLatestFactory>();
+        services.AddEvidenceSourceAdapter<MediaWikiFactory>();
+        services.AddEvidenceSourceAdapter<TavilyWebSearchFactory>();
+        services.AddEvidenceSourceAdapter<GoogleFactCheckFactory>();
+        services.AddSingleton<ISourceRegistry, SourceRegistry>();
         return services;
     }
 }

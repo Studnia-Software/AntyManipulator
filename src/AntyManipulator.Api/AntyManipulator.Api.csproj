@@ -13,6 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\AntyManipulator.Channels.Discord\AntyManipulator.Channels.Discord.csproj" />
     <ProjectReference Include="..\AntyManipulator.Core\AntyManipulator.Core.csproj" />
     <ProjectReference Include="..\AntyManipulator.Integrations\AntyManipulator.Integrations.csproj" />
   </ItemGroup>

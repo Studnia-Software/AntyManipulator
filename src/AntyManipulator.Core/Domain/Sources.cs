@@ -37,13 +37,43 @@ public sealed record SourceDocument
     public required string Snippet { get; init; }
 
     public IReadOnlyList<string> Categories { get; init; } = [];
+
+    /// <summary>Język materiału, jeśli znany (np. język zapytania, które go znalazło). Null = język źródła.</summary>
+    public string? Language { get; init; }
+
+    public string EffectiveLanguage => Language ?? Source.Language;
+}
+
+/// <summary>Zapytanie wyszukiwania w konkretnym języku (kod ISO 639-1, np. "pl", "en", "hu").</summary>
+public sealed record SearchQuery(string Language, string Text)
+{
+    public static IReadOnlyList<string> For(IEnumerable<SearchQuery> queries, string language) =>
+        queries.Where(q => string.Equals(q.Language, language, StringComparison.OrdinalIgnoreCase)).Select(q => q.Text).ToList();
+
+    /// <summary>Języki w kolejności: najpierw pl, potem en, potem pozostałe w kolejności od modelu.</summary>
+    public static IReadOnlyList<string> Languages(IEnumerable<SearchQuery> queries) =>
+        queries.Select(q => q.Language.ToLowerInvariant())
+            .Distinct()
+            .OrderBy(l => l == "pl" ? 0 : l == "en" ? 1 : 2)
+            .ToList();
 }
 
 public sealed record EvidenceQuery
 {
     public required string ClaimText { get; init; }
-    public required IReadOnlyList<string> QueriesPl { get; init; }
-    public required IReadOnlyList<string> QueriesEn { get; init; }
+
+    public required IReadOnlyList<SearchQuery> Queries { get; init; }
+
+    public IReadOnlyList<string> QueriesPl => SearchQuery.For(Queries, "pl");
+
+    public IReadOnlyList<string> QueriesEn => SearchQuery.For(Queries, "en");
+
+    public IReadOnlyList<string> For(string language) => SearchQuery.For(Queries, language);
+
+    public IReadOnlyList<string> Languages => SearchQuery.Languages(Queries);
+
+    /// <summary>Treść twierdzenia i wszystkie zapytania, do dopasowania wyników niezależnie od języka.</summary>
+    public string AllText => string.Join(' ', new[] { ClaimText }.Concat(Queries.Select(q => q.Text)));
 
     /// <summary>
     /// Domeny, których nie wolno użyć jako dowodu, np. strona, którą użytkownik właśnie sprawdza

@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using AntyManipulator.Api.Controllers;
 using AntyManipulator.Api.Extensions;
+using AntyManipulator.Channels.Discord;
 using AntyManipulator.Core;
 using AntyManipulator.Integrations;
 using Scalar.AspNetCore;
@@ -12,6 +13,9 @@ builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 builder.Services.AddFactCheckCore();
 builder.Services.AddIntegrations(builder.Configuration);
+
+// Kanały asynchroniczne (korzystają z kolejki). Kolejny kanał = kolejne AddXxxChannel().
+builder.Services.AddDiscordChannel();
 
 builder.Services.ConfigureHttpJsonOptions(o =>
 {

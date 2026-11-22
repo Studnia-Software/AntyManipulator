@@ -31,6 +31,7 @@ public sealed class EvidenceAssessor(ILlmClient llm) : IEvidenceAssessor
         foreach (var (id, doc) in ids)
         {
             sb.AppendLine($"[{id}] source: {doc.Source.Name} ({doc.Source.Type}), publisher: {doc.Source.Publisher}, " +
+                          $"language: {doc.EffectiveLanguage}, " +
                           $"date ({doc.DateKind}): {doc.PublishedAt?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "unknown"}");
             sb.AppendLine($"title: {doc.Title}");
             if (doc.Categories.Count > 0)
@@ -44,6 +45,7 @@ public sealed class EvidenceAssessor(ILlmClient llm) : IEvidenceAssessor
 
         var response = await llm.CompleteJsonAsync<AssessmentDto>(new LlmJsonRequest
         {
+            Purpose = LlmPurposes.Assessment,
             SchemaName = "evidence_assessment",
             SchemaJson = Prompts.AssessmentSchema,
             SystemPrompt = Prompts.AssessmentSystem(untrusted.Rule),
@@ -77,6 +79,7 @@ public sealed class EvidenceAssessor(ILlmClient llm) : IEvidenceAssessor
                 Relevance = ParseRelevance(a.Relevance),
                 IsContext = isContext,
                 Quote = verified ? quote : null,
+                QuoteTranslationPl = verified ? Translation(a.QuotePl, quote) : null,
                 QuoteVerified = verified,
                 SourceRating = string.IsNullOrWhiteSpace(a.SourceRating) ? null : TextTools.Truncate(a.SourceRating.Trim(), 60),
             });
@@ -97,6 +100,14 @@ public sealed class EvidenceAssessor(ILlmClient llm) : IEvidenceAssessor
                 .ToList(),
             InjectionSuspected = response.InjectionSuspected,
         };
+    }
+
+    private static string? Translation(string? quotePl, string quote)
+    {
+        var t = Clean(quotePl, 450);
+        return t is null || string.Equals(TextTools.NormalizeForQuote(t), TextTools.NormalizeForQuote(quote), StringComparison.Ordinal)
+            ? null
+            : t;
     }
 
     private static bool IsVerbatim(string quote, SourceDocument doc)
@@ -151,6 +162,7 @@ public sealed class EvidenceAssessor(ILlmClient llm) : IEvidenceAssessor
         public string? Relevance { get; set; }
         public bool Context { get; set; }
         public string? Quote { get; set; }
+        public string? QuotePl { get; set; }
         public string? SourceRating { get; set; }
     }
 }

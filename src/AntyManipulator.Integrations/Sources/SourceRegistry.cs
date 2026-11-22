@@ -1,67 +1,73 @@
 using AntyManipulator.Core.Abstractions;
 using AntyManipulator.Core.Domain;
-using AntyManipulator.Core.Options;
 using AntyManipulator.Integrations.Options;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AntyManipulator.Integrations.Sources;
 
-/// <summary>Buduje adaptery źródeł z sekcji "Sources" (oraz "WebSearch" i "GoogleFactCheck") w appsettings.</summary>
+/// <summary>
+/// Buduje źródła z sekcji "Sources:Definitions", korzystając z zarejestrowanych fabryk
+/// (<see cref="IEvidenceSourceFactory"/>). Nie zna konkretnych adapterów: nowe źródło dodaje się
+/// przez rejestrację fabryki i wpis w konfiguracji. Źródło bez fabryki albo bez wymaganego klucza
+/// jest jawnie wyłączone z podanym powodem, a nie zatrzymuje aplikacji.
+/// </summary>
 public sealed class SourceRegistry : ISourceRegistry
 {
     public SourceRegistry(
         IOptions<SourcesOptions> options,
-        IOptions<WebSearchOptions> webOptions,
-        IOptions<GoogleFactCheckOptions> googleOptions,
-        IOptions<PublisherGroupsOptions> publisherGroups,
-        IHttpClientFactory httpFactory,
-        IMemoryCache cache)
+        IEnumerable<IEvidenceSourceFactory> factories,
+        ILogger<SourceRegistry> logger)
     {
         var opts = options.Value;
-        var google = googleOptions.Value;
+        var byAdapter = factories
+            .GroupBy(f => f.Adapter, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Last(), StringComparer.OrdinalIgnoreCase);
+        var context = new SourceFactoryContext(opts.Definitions, opts);
 
-        // Źródło wymagające klucza bez skonfigurowanego klucza jest jawnie wyłączone, z powodem.
-        var definitions = opts.Definitions.Select(d =>
-            d is { Adapter: SourceAdapter.GoogleFactCheck, Enabled: true } && string.IsNullOrWhiteSpace(google.ApiKey)
-                ? Disabled(d, "brak klucza API (GoogleFactCheck:ApiKey)")
-                : d).ToList();
+        var all = new List<SourceDescriptor>();
+        var active = new List<IEvidenceSource>();
 
-        All = definitions.Select(d => d.ToDescriptor()).ToList();
-        Active = definitions
-            .Where(d => d.Enabled)
-            .Select<SourceDefinition, IEvidenceSource>(d => d.Adapter switch
+        foreach (var definition in opts.Definitions)
+        {
+            if (!definition.Enabled)
             {
-                SourceAdapter.WordPressSearchFeed => new WordPressSearchFeedSource(d, httpFactory, cache, opts),
-                SourceAdapter.WordPressRest => new WordPressRestSource(d, httpFactory, cache, opts),
-                SourceAdapter.RssLatest => new RssLatestSource(d, httpFactory, cache, opts),
-                SourceAdapter.MediaWiki => new MediaWikiSource(d, httpFactory, cache, opts),
-                SourceAdapter.TavilyWebSearch => new TavilyWebSearchSource(d, opts.Definitions, webOptions.Value, publisherGroups.Value, httpFactory, cache, opts),
-                SourceAdapter.GoogleFactCheck => new GoogleFactCheckSource(d, opts.Definitions, google, publisherGroups.Value, httpFactory, cache, opts),
-                _ => throw new InvalidOperationException($"Unknown source adapter {d.Adapter} for {d.Id}"),
-            })
-            .ToList();
+                all.Add(definition.ToDescriptor());
+                continue;
+            }
+
+            if (!byAdapter.TryGetValue(definition.Adapter, out var factory))
+            {
+                logger.LogWarning("Source {SourceId}: no factory registered for adapter {Adapter}", definition.Id, definition.Adapter);
+                all.Add(definition.ToDescriptor() with { Enabled = false, DisabledReason = $"nieznany adapter \"{definition.Adapter}\"" });
+                continue;
+            }
+
+            var reason = factory.UnavailableReason(definition);
+            if (reason is not null)
+            {
+                all.Add(definition.ToDescriptor() with { Enabled = false, DisabledReason = reason });
+                continue;
+            }
+
+            try
+            {
+                var source = factory.Create(definition, context);
+                active.Add(source);
+                all.Add(source.Descriptor);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Source {SourceId}: adapter {Adapter} failed to initialise", definition.Id, definition.Adapter);
+                all.Add(definition.ToDescriptor() with { Enabled = false, DisabledReason = "błąd konfiguracji źródła" });
+            }
+        }
+
+        All = all;
+        Active = active;
     }
 
     public IReadOnlyList<SourceDescriptor> All { get; }
 
     public IReadOnlyList<IEvidenceSource> Active { get; }
-
-    private static SourceDefinition Disabled(SourceDefinition d, string reason) => new()
-    {
-        Id = d.Id,
-        Name = d.Name,
-        Publisher = d.Publisher,
-        Type = d.Type,
-        Adapter = d.Adapter,
-        BaseUrl = d.BaseUrl,
-        FeedUrl = d.FeedUrl,
-        Language = d.Language,
-        Reliability = d.Reliability,
-        OwnershipGroup = d.OwnershipGroup,
-        Enabled = false,
-        Description = d.Description,
-        CoverageNote = d.CoverageNote,
-        DisabledReason = reason,
-    };
 }

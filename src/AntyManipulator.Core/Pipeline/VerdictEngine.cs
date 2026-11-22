@@ -33,6 +33,23 @@ public static class VerdictEngine
         };
     }
 
+    public static string FreshnessLabel(DateTimeOffset? date, DateTimeOffset now)
+    {
+        if (date is null)
+        {
+            return "brak daty";
+        }
+
+        var days = (now - date.Value).TotalDays;
+        return days switch
+        {
+            <= 30 => "do 30 dni",
+            <= 365 => "do roku",
+            <= 3 * 365 => "do 3 lat",
+            _ => "starsze niż 3 lata",
+        };
+    }
+
     public static double RelevanceFactor(Relevance r) => r switch
     {
         Relevance.High => 1.0,
@@ -43,31 +60,45 @@ public static class VerdictEngine
     public static double Weight(AssessedEvidence e, DateTimeOffset now) =>
         Math.Round(e.Document.Source.Reliability * FreshnessFactor(e.Document.PublishedAt, now) * RelevanceFactor(e.Relevance), 2);
 
-    public static ClaimResult NotVerifiable(Claim claim) => new()
+    public static ClaimResult NotVerifiable(Claim claim)
     {
-        Index = claim.Index,
-        Text = claim.Text,
-        Risk = claim.Risk,
-        Outcome = ClaimOutcome.Of(Verdict.NotVerifiable),
-        Summary = claim.Kind switch
+        var outcome = ClaimOutcome.Of(Verdict.NotVerifiable);
+        var summary = claim.Kind switch
         {
             ClaimKind.Opinion => "To opinia, a nie twierdzenie o faktach. Opinii nie da się potwierdzić ani obalić w źródłach.",
             ClaimKind.Prediction => "To przewidywanie przyszłości. Nie da się go teraz sprawdzić w źródłach.",
             ClaimKind.Satire => "To wygląda na satyrę lub żart, a nie na twierdzenie o faktach.",
             _ => "To nie jest twierdzenie o faktach, które da się sprawdzić w źródłach.",
-        },
-        Premises = ["Rodzaj wypowiedzi rozpoznany przy wyodrębnianiu twierdzeń: " + KindLabel(claim.Kind) + "."],
-    };
+        };
 
-    public static ClaimResult Status(Claim claim, ServiceStatus status, string message, IReadOnlyList<string>? unknowns = null) => new()
+        return new ClaimResult
+        {
+            Index = claim.Index,
+            Text = claim.Text,
+            Risk = claim.Risk,
+            Outcome = outcome,
+            Summary = summary,
+            Premises = ["Rodzaj wypowiedzi rozpoznany przy wyodrębnianiu twierdzeń: " + KindLabel(claim.Kind) + "."],
+            Chain = EvidenceChainBuilder.Minimal(claim, outcome, summary + " Dlatego nie przeszukiwaliśmy źródeł."),
+        };
+    }
+
+    public static ClaimResult Status(
+        Claim claim, ServiceStatus status, string message,
+        IReadOnlyList<string>? unknowns = null, IReadOnlyList<SourceQueryLog>? sourceLogs = null)
     {
-        Index = claim.Index,
-        Text = claim.Text,
-        Risk = claim.Risk,
-        Outcome = ClaimOutcome.Of(status),
-        Summary = message,
-        Unknowns = unknowns ?? [],
-    };
+        var outcome = ClaimOutcome.Of(status);
+        return new ClaimResult
+        {
+            Index = claim.Index,
+            Text = claim.Text,
+            Risk = claim.Risk,
+            Outcome = outcome,
+            Summary = message,
+            Unknowns = unknowns ?? [],
+            Chain = EvidenceChainBuilder.Minimal(claim, outcome, message, sourceLogs),
+        };
+    }
 
     public static ClaimResult Decide(
         Claim claim,
@@ -186,12 +217,13 @@ public static class VerdictEngine
             .Select(c => ToItem(c.Evidence, c.Weight))
             .ToList();
 
+        var outcome = ClaimOutcome.Of(verdict);
         return new ClaimResult
         {
             Index = claim.Index,
             Text = claim.Text,
             Risk = claim.Risk,
-            Outcome = ClaimOutcome.Of(verdict),
+            Outcome = outcome,
             Strength = strength,
             StrengthLabel = strength is null ? null : Labels.For(strength.Value),
             Summary = Summary(verdict, winning, support, negative),
@@ -201,6 +233,7 @@ public static class VerdictEngine
             Evidence = evidenceItems,
             Context = contextItems,
             Unknowns = unknowns.Distinct().ToList(),
+            Chain = EvidenceChainBuilder.Build(claim, assessment, sourceLogs, now, outcome, strength, rule),
         };
     }
 
@@ -268,6 +301,8 @@ public static class VerdictEngine
         Date = e.Document.PublishedAt,
         DateKind = e.Document.DateKind,
         Quote = e.Quote,
+        Language = e.Document.EffectiveLanguage,
+        QuoteTranslationPl = e.QuoteTranslationPl,
         Stance = e.Stance,
         StanceLabel = Labels.For(e.Stance),
         Relevance = e.Relevance,
