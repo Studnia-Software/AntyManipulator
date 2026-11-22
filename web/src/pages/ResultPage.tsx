@@ -1,56 +1,59 @@
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { useGetCheckQuery } from '../api';
-import { ClaimCard, formatDate, Overview, SourcesStatus } from '../components';
+import {
+  CheckLoader,
+  ClaimCard,
+  formatDate,
+  Overview,
+  SourcesStatus,
+} from '../components';
 
 export const ResultPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const searchQuery = searchParams.get('q');
 
-  const [query, setQuery] = useState<{
-    text: string | null;
-    url: string | null;
-  }>({
-    text: null,
-    url: null,
-  });
+  // Zapytanie liczone od razu z adresu: wcześniej pierwszy render wysyłał do API puste dane.
+  const query = useMemo(() => {
+    const value = searchQuery?.trim() || null;
+    const isUrl =
+      value?.startsWith('http://') || value?.startsWith('https://') || false;
+    return { text: isUrl ? null : value, url: isUrl ? value : null };
+  }, [searchQuery]);
 
   const { data: result, isLoading, isError } = useGetCheckQuery(query);
-
-  useEffect(() => {
-    const isUrl =
-      searchQuery?.startsWith('http://') || searchQuery?.startsWith('https://');
-    setQuery({
-      text: isUrl ? null : searchQuery,
-      url: isUrl ? searchQuery : null,
-    });
-  }, [searchQuery]);
 
   const onBack = () => {
     navigate('/');
   };
 
-  if (!result) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Brak danych analizy.
-      </div>
-    );
-  }
-
+  // Kolejność ma znaczenie: najpierw ładowanie i błąd, dopiero potem brak danych.
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Trwa weryfikacja materiału...
-      </div>
-    );
+    return <CheckLoader />;
   }
 
   if (isError) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        Wystąpił błąd podczas weryfikacji materiału.
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-5 text-center">
+        <p>Wystąpił błąd techniczny podczas weryfikacji. To nie jest ocena treści.</p>
+        <button
+          onClick={onBack}
+          className="text-blue-600 hover:underline font-semibold"
+        >
+          Spróbuj ponownie
+        </button>
+      </div>
+    );
+  }
+
+  if (!result) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-5 text-center">
+        <p>Brak danych analizy.</p>
+        <Link to="/" className="text-blue-600 hover:underline font-semibold">
+          Wróć do wyszukiwania
+        </Link>
       </div>
     );
   }

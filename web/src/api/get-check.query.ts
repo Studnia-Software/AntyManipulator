@@ -23,11 +23,19 @@ export const useGetCheckQuery = (type: CheckType) => {
       }
       return response.json();
     },
+    // Bez treści nie ma czego sprawdzać.
+    enabled: Boolean(type.text || type.url),
+    // Sprawdzenie trwa kilkadziesiąt sekund i kosztuje zapytania do modelu i źródeł:
+    // nie ponawiamy go automatycznie ani przy powrocie do karty.
+    retry: false,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   return {
     data: query.data,
-    isLoading: query.isPending,
+    // isLoading = trwa pierwsze pobieranie; isPending jest true także dla wyłączonego zapytania.
+    isLoading: query.isLoading,
     isError: query.isError,
   };
 };
