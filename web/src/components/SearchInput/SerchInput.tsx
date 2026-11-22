@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 
-export const LandingSearch = () => {
+export const SearchInput = () => {
   const [query, setQuery] = useState('');
   const [image, setImage] = useState(null);
   const [dragging, setDragging] = useState(false);
@@ -118,7 +118,7 @@ export const LandingSearch = () => {
           onChange={(e) => setQuery(e.target.value)}
           onPaste={handlePaste}
           onKeyDown={handleKeyDown}
-          placeholder="Wpisz tekst lub wklej screenshot..."
+          placeholder="Wpisz tekst, wklej URL lub screenshot..."
           rows={3}
           className="
               w-full resize-none outline-none
