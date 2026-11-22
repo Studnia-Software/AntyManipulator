@@ -64,7 +64,7 @@ export const ResultPage = () => {
 
       <header className="bg-white border-b border-gray-200 sticky   px-5 h-16 flex">
         <span className="font-bold content-center">
-          <span className="text-blue-500">Anty</span>Manipulator
+          <span className="text-blue-500">Anty</span>manipulator
         </span>
       </header>
 
@@ -211,7 +211,7 @@ export const ResultPage = () => {
         {/* FOOTER */}
 
         <footer className="text-center text-xs text-gray-400 py-6">
-          AntyManipulator - HackNation 2026
+          Antymanipulator - HackNation 2026
         </footer>
       </div>
     </main>
