@@ -3,7 +3,7 @@ export const SearchTitle = () => {
     <>
       {/* Logo */}
       <h1 className="text-5xl sm:text-6xl text-zinc-900 font-extrabold tracking-tight mb-4 font-montserrat">
-        AntyManipulator
+        <span className="text-blue-500">Anty</span>Manipulator
       </h1>
 
       <p className="text-sm text-gray-500 mb-9 text-center">

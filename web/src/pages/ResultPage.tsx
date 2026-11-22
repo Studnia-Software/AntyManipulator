@@ -62,8 +62,10 @@ export const ResultPage = () => {
     <main className=" bg-[#F8F9FA] text-gray-800">
       {/* HEADER */}
 
-      <header className="bg-white border-b border-gray-200 sticky max-w-5xl  px-5 h-16 flex">
-        <span className="font-bold content-center">AntyManipulator</span>
+      <header className="bg-white border-b border-gray-200 sticky   px-5 h-16 flex">
+        <span className="font-bold content-center">
+          <span className="text-blue-500">Anty</span>Manipulator
+        </span>
       </header>
 
       {/* MAIN */}
