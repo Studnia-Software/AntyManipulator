@@ -1,4 +1,4 @@
-export const LandingTitle = () => {
+export const SearchTitle = () => {
   return (
     <>
       {/* Logo */}

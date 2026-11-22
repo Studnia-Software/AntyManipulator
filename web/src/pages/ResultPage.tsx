@@ -1,9 +1,9 @@
-import { useNavigate, useSearchParams } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useEffect, useState } from 'react';
 import { useGetCheckQuery } from '../api';
 import { ClaimCard, formatDate, Overview, SourcesStatus } from '../components';
 
-export const ResultsPage = () => {
+export const ResultPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const searchQuery = searchParams.get('q');
@@ -59,23 +59,22 @@ export const ResultsPage = () => {
   const input = result.input || {};
 
   return (
-    <main className="min-h-screen bg-[#F8F9FA] text-gray-800">
+    <main className=" bg-[#F8F9FA] text-gray-800">
       {/* HEADER */}
 
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-20">
-        <div className="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between gap-4">
-          <button
-            onClick={onBack}
-            className="text-sm text-gray-500 hover:text-blue-600 whitespace-nowrap"
-          >
-            ← Nowa analiza
-          </button>
-        </div>
+      <header className="bg-white border-b border-gray-200 sticky max-w-5xl  px-5 h-16 flex">
+        <span className="font-bold content-center">AntyManipulator</span>
       </header>
 
       {/* MAIN */}
 
       <div className="max-w-5xl mx-auto px-5 py-8 space-y-6">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-4 mb-8">
+          <Link to="/" className="text-blue-600 hover:underline font-semibold">
+            &lt;&lt; Nowa analiza
+          </Link>
+        </div>
+
         {/* TITLE */}
 
         <section>
@@ -210,7 +209,7 @@ export const ResultsPage = () => {
         {/* FOOTER */}
 
         <footer className="text-center text-xs text-gray-400 py-6">
-          !Antymanipulator · Raport weryfikacji informacji
+          AntyManipulator - HackNation 2026
         </footer>
       </div>
     </main>
