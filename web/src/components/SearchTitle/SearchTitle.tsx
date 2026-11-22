@@ -2,7 +2,7 @@ export const SearchTitle = () => {
   return (
     <>
       {/* Logo */}
-      <h1 className="text-4xl sm:text-6xl font-bold tracking-tight mb-4 font-montserrat">
+      <h1 className="text-5xl sm:text-6xl text-zinc-900 font-extrabold tracking-tight mb-4 font-montserrat">
         AntyManipulator
       </h1>
 
