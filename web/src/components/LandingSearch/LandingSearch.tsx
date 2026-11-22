@@ -72,19 +72,7 @@ export const LandingSearch = () => {
   const handleSearch = () => {
     if (!query.trim() && !image) return;
 
-    // // Tutaj podłączysz swoje API
-    // console.log('Wyszukiwanie:', {
-    //   text: query,
-    //   image: image?.file || null,
-    // });
-
-    // navigate(
-    //   `/results?q=${encodeURIComponent(query)}${image ? '&image=true' : ''}`,
-    // );
-
-    navigate(
-      `/result?q=${query ? encodeURIComponent(query) : ''}${image ? '&image=true' : ''}`,
-    );
+    navigate(`/result?q=${encodeURIComponent(query)}`);
   };
 
   // Enter uruchamia wyszukiwanie
